@@ -1,7 +1,7 @@
 const Joi = require('joi');
 
-function joy() {
+function joi() {
     Joi.objectId = require('joi-objectid');
 }
 
-module.exports = joy;
+module.exports = joi;

@@ -1,27 +1,39 @@
-const { User, validateIn } = require('../models/userM');
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcrypt');
-const wrapperMiddleware = require('../middlewares/wrap');
 
-router.post('/', wrapperMiddleware(async ( req, res) => {
-    const { error } = validateIn(req.body);
+const router = express.Router();
+
+const { User, validateIn } = require('../models/userM');
+
+const wrapper = require('../middlewares/wrap');
+const bodyValidator = require('../middlewares/bodyValidator');
+
+router.post('/', bodyValidator(validateIn), wrapper ( async ( req, res) => {
     const { email, password } = req.body;
 
-    if (error) {
-        return res.status(400).send(error.details[0].message);
+    let user = await User.findOne({ email: email });
+
+    if (!user) {
+        return res.status(400).json({
+            status: 400,
+            message: 'invalid username or password...'
+        })
     } else {
-        let user = await User.findOne({ email: email });
-        if (!user) {
-            return res.status(400).send('invalid username or password...');
+        const valid = await bcrypt.compare(password, user.password);
+
+        if (!valid) {
+            return res.status(400).json({
+                status: 400,
+                message: 'invalid username or password...'
+            });
         } else {
-            const valid = await bcrypt.compare(password, user.password);
-            if (!valid) {
-                return res.status(400).send('invalid username or password...');
-            } else {
-                const token = user.generateToken();
-                res.header('x-auth-token', token).send('welcome home....')
-            }
+            const token = user.generateToken();
+
+            res.header('x-auth-token', token).status(200).json({
+                status: 200,
+                message: 'success',
+                data: user
+            })
         }
     }
 }));

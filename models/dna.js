@@ -51,29 +51,43 @@ const testSchema = new mongoose.Schema({
 
 const Test = mongoose.model('Test', testSchema);
 
-function validate(inp) {
+function validate(input) {
     const schema = Joi.object({
-        presumedRelation: Joi.string().required().min(3).max(15),
-        nameOfPresumedSibling: Joi.string().required().min(3).max(15)
+        presumedRelation: Joi.string()
+            .required()
+            .min(3)
+            .max(15),
+
+        nameOfPresumedSibling: Joi.string()
+            .required()
+            .min(3)
+            .max(15)
     });
 
-    const result = schema.validate(inp);
+    const result = schema.validate(input);
     return result;
 }
 
-function val(inp) {
+function val(input) {
     const schema = Joi.object({
         kitRecieved: Joi.boolean(),
+
         kitSent: Joi.boolean(),
+
         requestedKit: Joi.boolean(),
-        testResult: Joi.string().min(4).max(7)
+
+        testResult: Joi.string()
+            .min(4)
+            .max(7)
     })
 
-    const result = schema.validate(inp);
+    const result = schema.validate(input);
     return result;
 }
 
-module.exports.Test = Test;
-module.exports.testSchema = testSchema;
-module.exports.validate = validate;
-module.exports.val = val;
+module.exports = {
+    val,
+    Test,
+    testSchema,
+    validate
+}

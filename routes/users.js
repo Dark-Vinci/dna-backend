@@ -1,184 +1,151 @@
-const express = require('express');
-const { validate, User, validatePut, validatePassword } = require('../models/userM');
-const router = express.Router();
-const mongoose = require('mongoose');
 const _ = require('lodash');
-const { Test } = require('../models/dna');
 const bcrypt = require('bcrypt');
-const auth = require('../middlewares/authenticate');
+const express = require('express');
+
+const router = express.Router();
+
+const wrapper = require('../middlewares/wrap');
 const admin = require('../middlewares/isAdmin');
-const wrapperMiddleware = require('../middlewares/wrap');
+const auth = require('../middlewares/authenticate');
+const idValidator = require('../middlewares/idValidator');
+const bodyValidator = require('../middlewares/bodyValidator');
 
-const val = mongoose.Types.ObjectId
+const { User, validatePut, validatePassword } = require('../models/userM');
 
-router.get('/', [ auth, admin ], wrapperMiddleware(async (req, res) => {
-    const users = await User
-        .find()
-        .select('-password');
-    res.send(users);
+const adminMiddleware = [ auth, admin ];
+const idAuthMiddleware = [ idValidator, auth ];
+const idAdminMiddleware = [ idValidator, auth, admin ];
+const editMiddleware = [ auth, idValidator, bodyValidator(validatePut) ];
+const changePasswordMiddleware = [ auth, idValidator, bodyValidator(validatePassword) ];
+
+router.get('/all',  adminMiddleware, wrapper ( async (req, res) => {
+    const users = await User.find()
+        .select({ password: 0 });
+
+    res.status(200).json({
+        status: 200,
+        message: 'success',
+        data: users
+    })
 }));
 
-router.put('/:id/changepassword', [ auth ], wrapperMiddleware(async (req, res) => {
-    const id = req.params.id;
-    const userId = req.user._id;
+router.put('/changepassword', changePasswordMiddleware, wrapper ( async (req, res) => {
+    const id = req.user._id;
 
-    if (!val.isValid(id)) {
-        return res.status(404).send('you might be lost boss man');
+    const { newPassword, oldPassword } = req.body;
+
+    const user = await User.findById(id);
+
+    const isValid = await bcrypt.compare(oldPassword, user.password);
+
+    if (!isValid) {
+        return res.status(400).json({
+            status: 400,
+            message: 'invalid input'
+        })
     } else {
-        if (id === userId) {
-            const { error } = validatePassword(req.body);
-            if (error) {
-                return res.status(400).send(error.details[0].message)
-            } else {
-                const { newPassword, oldPassword } = req.body;
-                const user = await User.findById(id);
-                const isValid = await bcrypt.compare(oldPassword, user.password);
-                if (!isValid) {
-                    return res.status(400).send('invalid input');
-                } else {
-                    const salt = await bcrypt.genSalt(10);
-                    const hash = await bcrypt.hash(newPassword, salt);
-                    user.password = hash;
-                    await user.save();
-                    res.send('password successfuly changed');
-                }
-            }
-        } else {
-            return res.status(404).send('you broke something');
-        }
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(newPassword, salt);
+
+        user.password = hash;
+        await user.save();
+
+        res.status(200).json({
+            status: 200,
+            message: 'success',
+            data: 'password successfuly changed'
+        })
     }
 }));
 
-router.get('/:id', [ auth ], wrapperMiddleware(async (req, res) => {
-    const id = req.params.id;
-    const userId = req.user._id;
+router.get('/me-data', idAuthMiddleware, wrapper ( async (req, res) => {
+    const id = req.user._id;
 
-    if (id === userId || req.user.isAdmin) {
-        if (!val.isValid(id)) {
-            return res.status(400).send('ment lord...');
-        } else {
-            const user = await User
-            .findById(id)
-                .select('-password');
-            if (!user) {
-                return res.status(400).send('be like sey you dey ment, send better id')
-            } else {
-                res.send(user)
-            }
-        }
+    const user = await User.findById(id)
+        .select({ password: 0 });
+
+    if (!user) {
+        return res.status(400).json({
+            status: 400,
+            message: 'be like sey you dey ment, send better id'
+        })
     } else {
-        res.status(400).send('you broke something...')
+        res.status(200).json({
+            status: 200,
+            message: 'success',
+            data: user
+        })
     }
 }));
 
-router.put('/:id',[ auth ], wrapperMiddleware(async (req, res) => {
-   const { error } = validatePut(req.body);
-   const { id } = req.params;
-   const customerId = req.user._id;
+router.put('/edit', editMiddleware, wrapper ( async (req, res) => {
+    const id = req.user._id;
+    let user = await User.findById(id);
 
-    if (id === customerId || req.user.isAdmin) {
-        if (!val.isValid(id)) {
-            return res.status(400).send('ment lord...')
-        } else {
-            if (error) {
-                return res.status(400).send(error.details[0].message)
-            } else {
-                let user = await User
-                    .findById(id);
-                if (!user){
-                    return res.status(400).send('ment dey do you man')
-                } else {
-                    let obj = Object.keys(req.body);
-    
-                    if (obj.includes('password')) {
-                        return res.status(400).send('this is not the right place to change a password');
-                    } else {
-                        for (let i of obj) {
-                            user[i] = req.body[i];
-                        }
-            
-                        let result = await user.save();
-                        result = _.pick(result, ['firstName', 'lastName', 'age', 'sex', 'phoneNumber', 'email', 'address'])
-                        res.send(result);
-                    }
-                }
-            }
-        }
+    if (!user){
+        return res.status(400).json({
+            status: 400,
+            message: 'ment dey do you man'
+        })
     } else {
-        return res.status(400).send('you broke something..')
-    }
-}))
+        const { firstName, lastName, phoneNumber, address } = req.body;
 
-router.delete('/:id',[ auth, admin ], wrapperMiddleware(async (req, res) => {
+        user.set({
+            firstName: firstName || user.firstName,
+            lastName: lastName || user.lastName,
+            phoneNumber: phoneNumber || user.phoneNumber,
+            address: address || user.address
+        })
+
+        await user.save();
+
+        toReturn = _.pick(result, ['firstName', 'lastName', 'age', 'sex', 'phoneNumber', 'email', 'address'])
+
+        res.status(200).json({
+            status: 200,
+            message: 'success',
+            data: toReturn
+        })
+    }
+}));
+
+router.delete('/remove/:id', idAdminMiddleware, wrapper ( async (req, res) => {
     const { id } = req.params;
-    if (!val.isValid(id)) {
-        res.status(400).send('you dey ment bro...')
+
+    const user = await User.findOneAndRemove({ _id: id });
+
+    if (!user) {
+        return res.status(404).json({
+            status: 404,
+            message: 'user not found'
+        })
     } else {
-        const user = await User
-            .findOneAndRemove({ _id: id });
-        if (!user) {
-            return res.status(400).send('ment whahala');
-        } else {
-            const result = _.pick(user, ['firstName', 'lastName', 'phoneNumber', 'email'])
-            res.send(user);
-        }
-    }
-}))
+        const result = _.pick(user, ['firstName', 'lastName', 'phoneNumber', 'email']);
 
-router.get('/:id/profile',[ auth ], wrapperMiddleware(async (req, res) => {
-    const { id } = req.params;
-    const customerId = req.user._id;
-
-    if (id === customerId || req.user.isAdmin) {
-        if (!val.isValid(id)) {
-            return res.status(404).send('youre a lost man, sadly...');
-        } else {
-            let userTest;
-            const tests = await Test
-                            .find();
-            for (let j of tests) {
-                if (test.user === id) {
-                    userTest = j;
-                    break;
-                }
-            }
-            if (!userTest) {
-                return res.send('you havent started any test procedures...');
-            } else {
-                res.send(userTest)
-            }
-        }
+        res.status(200).json({
+            status: 200,
+            message: 'success',
+            data: result
+        })
     }
 }));
 
-router.post('/', wrapperMiddleware(async (req, res) => {
-    const { error } = validate(req.body);
+router.get('/get-user/:id', idAdminMiddleware, wrapper ( async (req, res) => {
+    const { id } = req.params;
 
-    if (error) {
-       return res.status(400).send(error.details[0].message)
+    const user = await User.findById(id);
+
+    if (!user) {
+        return res.status(404).json({
+            status: 404,
+            message: 'user not found'
+        })
     } else {
-        let { email, password, firstName, lastName, sex, phoneNumber, testType, address } = req.body;
-        const check = await User.findOne({ email: email});
-
-        if (check) {
-            return res.status(400).send('a user with same email has once been registered');
-        } else {
-            let salt = await bcrypt.genSalt(10); 
-            password = await bcrypt.hash(password, salt);
-            const user = new User({
-                firstName,
-                lastName,
-                sex,
-                phoneNumber,
-                email,
-                address,
-                password
-            })
-            await user.save();
-            const token = user.generateToken();
-            const result  = _.pick(user, ['firstName', 'lastName', 'email']);
-            res.header('x-auth-token', token).send(result);
-        }
+        res.status(200).json({
+            status: 200,
+            message: 'success',
+            data: user
+        })
     }
 }));
 

@@ -72,60 +72,124 @@ userSchema.methods.generateToken = function() {
 
 const User = mongoose.model('User', userSchema);
 
-function validate(inp) {
+function validate(input) {
     schema = Joi.object({
-        firstName: Joi.string().required().min(2).max(200),
-        lastName: Joi.string().required().min(2).max(200),
-        sex: Joi.string().required().min(4).max(6),
-        age: Joi.number().integer().min(18).max(100).required(),
-        email: Joi.string().email().required(),
-        password:Joi.string().required().min(6),
-        address: Joi.string().required().min(5).max(100),
-        phoneNumber: Joi.string().required().min(4).max(20)
+        firstName: Joi.string()
+            .required()
+            .min(2)
+            .max(200),
+
+        lastName: Joi.string()
+            .required()
+            .min(2)
+            .max(200),
+
+        sex: Joi.string()
+            .required()
+            .min(4)
+            .max(6),
+
+        age: Joi.number()
+            .integer()
+            .min(18)
+            .max(100)
+            .required(),
+
+        email: Joi.string()
+            .email()
+            .required(),
+
+        password:Joi.string()
+            .required()
+            .min(6),
+
+        address: Joi.string()
+            .required()
+            .min(5)
+            .max(100),
+
+        phoneNumber: Joi.string()
+            .required()
+            .min(4)
+            .max(20)
     });
 
-    const result = schema.validate(inp);
+    const result = schema.validate(input);
     return result;
 }
 
-function validatePut(inp) {
+function validatePut(input) {
     schema = Joi.object({
-        firstName: Joi.string().min(2).max(200),
-        lastName: Joi.string().min(2).max(200),
-        sex: Joi.string().min(4).max(6),
-        age: Joi.number().integer().min(18).max(100),
-        email: Joi.string().email(),
-        password:Joi.string().min(6),
-        address: Joi.string().min(5).max(100),
-        phoneNumber: Joi.string().min(4).max(20)
+        firstName: Joi.string()
+            .min(2)
+            .max(200),
+
+        lastName: Joi.string()
+            .min(2)
+            .max(200),
+
+        sex: Joi.string()
+            .min(4)
+            .max(6),
+
+        age: Joi.number()
+            .integer()
+            .min(18)
+            .max(100),
+
+        email: Joi.string()
+            .email(),
+
+        password:Joi.string()
+            .min(6),
+
+        address: Joi.string()
+            .min(5)
+            .max(100),
+
+        phoneNumber: Joi.string()
+            .min(4)
+            .max(20)
     });
 
-    const result = schema.validate(inp);
+    const result = schema.validate(input);
     return result;
 }
 
-function validatePassword(inp) {
+function validatePassword(input) {
     const schema = Joi.object({
-        oldPassword: Joi.string().required().min(7),
-        newPassword: Joi.string().required().min(7)
+        oldPassword: Joi.string()
+            .required()
+            .min(7),
+
+        newPassword: Joi.string()
+            .required()
+            .min(7)
     })
 
-    const result = schema.validate(inp);
+    const result = schema.validate(input);
     return result;
 }
 
-function validateIn(inp) {
+function validateIn(input) {
     schema = Joi.object({
-        email: Joi.string().email().required(),
-        password:Joi.string().required().min(6)
+        email: Joi.string()
+            .email()
+            .required(),
+
+        password: Joi.string()
+            .required()
+            .min(6)
     })
 
-    const result = schema.validate();
+    const result = schema.validate(input);
     return result;
 }
 
-module.exports.User = User;
-module.exports.validate = validate;
-module.exports.validateIn = validateIn;
-module.exports.validatePut = validatePut;
-module.exports.validatePassword = validatePassword;
+module.exports = {
+    User,
+    validate,
+    validateIn,
+    validatePut,
+    validatePassword
+}

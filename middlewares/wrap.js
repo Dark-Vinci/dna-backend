@@ -1,11 +1,11 @@
-function wrapperMiddleware(handler) {
+function wrapper (handler) {
     return async (req, res, next) => {
         try {
             await handler(req, res);
-        } catch(er) {
-            next(er)
+        } catch(ex) {
+            next(ex);
         }
     }
 }
 
-module.exports = wrapperMiddleware;
+module.exports = wrapper;

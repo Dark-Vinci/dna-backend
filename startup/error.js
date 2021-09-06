@@ -2,7 +2,7 @@ const winston = require('winston');
 require('winston-mongodb');
 
 function logging(app) {
-    winston.add(new winston.transports.File( { filename: 'loglj.log'}));
+    winston.add(new winston.transports.File( { filename: 'loglj.log' } ));
     winston.add(new winston.transports.MongoDB( { 
         db: 'mongodb://localhost/healthy',
         level: 'info'
